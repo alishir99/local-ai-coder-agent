@@ -1,0 +1,10 @@
+{
+  "description": "Return 'Fizz' if number divisible by 3, 'Buzz' if divisible by 5, 'FizzBuzz' if both, else the number as string.",
+  "signature": "def fizzbuzz(n: int) -> str:",
+  "examples": [
+    {"input": 3, "output": "Fizz"},
+    {"input": 5, "output": "Buzz"},
+    {"input": 15, "output": "FizzBuzz"},
+    {"input": 2, "output": "2"}
+  ]
+}
