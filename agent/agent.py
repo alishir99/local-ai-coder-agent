@@ -1,5 +1,5 @@
 """
-AI Code Agent Orchestrator
+AI Code Agent
 
 Concise, robust pipeline to:
 - Generate tests and implementation
@@ -403,7 +403,7 @@ def run_task(task_input) -> None:
 
 def main() -> None:
     if len(sys.argv) < 2:
-        print("Usage: python -m agent.orchestrator <task-file>")
+        print("Usage: python -m agent.agent <task-file>")
         sys.exit(1)
     task_file = sys.argv[1]
     if not os.path.exists(task_file):
@@ -429,7 +429,7 @@ if __name__ == "__main__":
         sys.exit(0)
 
     print("Usage:")
-    print("  python -m agent.orchestrator task.json")
-    print('  python -m agent.orchestrator "write a function to do X"')
+    print("  python -m agent.agent task.json")
+    print('  python -m agent.agent "write a function to do X"')
 
 

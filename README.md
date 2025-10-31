@@ -9,9 +9,11 @@ An autonomous AI agent that generates, tests, and validates code with comprehens
 
 ##  Features
 
-- ** Automated Test Generation** - Creates comprehensive test suites from natural language descriptions
-- ** Code Implementation** - Generates production-ready code with iterative refinement
-- ** Test-Driven Development** - Automatic test-fix loops until all tests pass
+> ** Proof of Concept** - This is an early-stage project demonstrating AI-driven code generation. Not production-ready.
+
+- ** Automated Test Generation** - Generates basic test suites from natural language descriptions
+- ** Code Implementation** - AI-powered code generation with local LLMs
+- ** Test-Driven Development** - Automatic test-fix loops (up to 3 attempts)
 - ** Supply Chain Security** - Dependency vulnerability scanning with pip-audit
 - ** Code Security Analysis** - Static security analysis with Bandit
 - ** Mutation Testing** - Code quality validation with mutmut
@@ -104,7 +106,7 @@ docker build -t ai-agent-python .
 python ui.py
 
 # Command Line
-python -m agent.orchestrator examples/fizzbuzz.json
+python -m agent.agent examples/fizzbuzz.json
 ```
 
 ##  Usage Examples
@@ -132,7 +134,7 @@ Create a task JSON file:
 Run the agent:
 
 ```bash
-python -m agent.orchestrator task.json
+python -m agent.agent task.json
 ```
 
 ##  Project Structure
@@ -140,10 +142,10 @@ python -m agent.orchestrator task.json
 ```
 ai-code-agent/
 ├── agent/
-│   ├── orchestrator.py    # Main pipeline orchestration
-│   ├── models.py           # LLM integration
-│   ├── prompts.py          # System prompts
-│   └── tools.py            # Utility functions
+│   ├── agent.py           # Main pipeline orchestration
+│   ├── models.py          # LLM integration
+│   ├── prompts.py         # System prompts
+│   └── __init__.py        # Package initialization
 ├── examples/
 │   ├── fizzbuzz.json       # Example task
 │   └── roman_to_int.json   # Example task
@@ -170,7 +172,7 @@ Or select directly in the web UI.
 
 ### Adjust Pipeline Settings
 
-Edit `agent/orchestrator.py`:
+Edit `agent/agent.py`:
 
 ```python
 MAX_TEST_ATTEMPTS = 3        # Maximum test-fix iterations
@@ -216,7 +218,7 @@ python -m eval.run_eval
 Run mutation tests on existing code:
 
 ```bash
-python -m agent.orchestrator examples/fizzbuzz.json
+python -m agent.agent examples/fizzbuzz.json
 ```
 
 ##  Contributing

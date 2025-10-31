@@ -48,7 +48,7 @@ Then open: http://127.0.0.1:7860
 ### Command Line
 
 ```bash
-python -m agent.orchestrator examples/fizzbuzz.json
+python -m agent.agent examples/fizzbuzz.json
 ```
 
 ##  Your First Task
@@ -80,7 +80,7 @@ Create `my_task.json`:
 
 Run:
 ```bash
-python -m agent.orchestrator my_task.json
+python -m agent.agent my_task.json
 ```
 
 ##  What Happens?
@@ -113,7 +113,7 @@ The agent will:
 Just select a different model from the dropdown and click refresh!
 
 ### Adjust Timeout
-Edit `agent/orchestrator.py`:
+Edit `agent/agent.py`:
 ```python
 DEFAULT_TIMEOUT = 120  # seconds
 ```

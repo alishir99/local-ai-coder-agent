@@ -1,10 +1,7 @@
 from litellm import completion
 
 # Default model (you can change this later to experiment)
-#MODEL_NAME = "qwen3-coder:30b"
-#MODEL_NAME = "qwen3-coder:30b"
-#MODEL_NAME = "qwen3-coder:30b"
-MODEL_NAME = "qwen3-coder:30b"
+MODEL_NAME = "phi3.5:latest"
 
 
 def call_model(system_prompt, user_message, temperature=0.2, max_tokens=800):

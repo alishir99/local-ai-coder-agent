@@ -2,7 +2,7 @@ import gradio as gr
 import webbrowser
 import threading
 import time
-from agent.orchestrator import run_task
+from agent.agent import run_task
 import tempfile
 import json
 import os
@@ -123,7 +123,7 @@ def run_agent(natural_prompt, selected_model, progress=gr.Progress()):
     
     task = {"instruction": natural_prompt}
 
-    # Save task to temp JSON for orchestrator
+    # Save task to temp JSON for agent
     with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix=".json") as tmp:
         json.dump(task, tmp)
         tmp_path = tmp.name
