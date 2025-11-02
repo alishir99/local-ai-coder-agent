@@ -26,8 +26,6 @@ if %errorlevel% neq 0 (
     echo Docker not found!
     echo Please install Docker Desktop from https://www.docker.com/products/docker-desktop/
     echo After installation, restart this script.
-    pause
-    exit /b 1
 )
 docker --version
 echo.
