@@ -119,26 +119,47 @@ def run_agent(natural_prompt, selected_model, progress=gr.Progress()):
     import importlib
     importlib.reload(models)
     
-    progress(0, desc=" Starting agent...")
+    progress(0, desc=" Parsing task...")
     
-    task = {"instruction": natural_prompt}
-
+    # Parse natural language into structured task JSON
+    try:
+        from agent.models import call_task_parser
+        print(" Parsing task into structured format...")
+        task_json = call_task_parser(natural_prompt)
+        
+        if "signature" in task_json:
+            print(f"✓ Task parsed successfully:")
+            print(f"  Function: {task_json.get('signature', 'N/A')}")
+            print(f"  Description: {task_json.get('description', 'N/A')}")
+        else:
+            print(" Using natural language format (no structured parsing)")
+            
+        progress(0.05, desc=" Task parsed, starting pipeline...")
+    except Exception as e:
+        print(f" Task parser failed: {e}, using fallback format")
+        task_json = {"instruction": natural_prompt}
+    
     # Save task to temp JSON for agent
     with tempfile.NamedTemporaryFile(mode='w', delete=False, suffix=".json") as tmp:
-        json.dump(task, tmp)
+        json.dump(task_json, tmp)
         tmp_path = tmp.name
 
     output_buffer = []
+    
+    # Track test results for better progress updates
+    test_results = {}
+    
     stage_map = {
-        "Generating tests": (0.1, " Generating test cases"),
-        "Generating initial code": (0.2, " Writing initial implementation"),
-        "Attempt 1": (0.3, " Running tests - Attempt 1"),
-        "Attempt 2": (0.5, " Running tests - Attempt 2"),
-        "Attempt 3": (0.7, " Running tests - Attempt 3"),
-        "Tests passed": (0.75, " Tests passed!"),
-        "Running dependency audit": (0.8, " Auditing dependencies"),
-        "Running security scan": (0.85, " Scanning code security"),
-        "Running mutation testing": (0.9, " Running mutation tests"),
+        "Task parsed": (0.05, " Task parsed"),
+        "Generating tests": (0.15, " Generating test cases"),
+        "Generating initial code": (0.25, " Writing initial implementation"),
+        "Attempt 1/": (0.35, " Running tests - Attempt 1"),
+        "Attempt 2/": (0.55, " Running tests - Attempt 2"),
+        "Attempt 3/": (0.75, " Running tests - Attempt 3"),
+        "Tests passed": (0.80, " Tests passed!"),
+        "Running dependency audit": (0.85, " Auditing dependencies"),
+        "Running security scan": (0.90, " Scanning code security"),
+        "Running mutation testing": (0.95, " Running mutation tests"),
         "Task complete": (1.0, " Complete!")
     }
 
@@ -146,9 +167,38 @@ def run_agent(natural_prompt, selected_model, progress=gr.Progress()):
 
     def patched_print(*args, **kwargs):
         msg = " ".join(str(a) for a in args)
+        
+        # Filter out mutmut spinner lines (⠋ ⠙ ⠹ etc.)
+        spinner_chars = '⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏'
+        if any(char in msg for char in spinner_chars):
+            # Skip spinner output but still print to console
+            original_print(*args, **kwargs)
+            return
+        
         output_buffer.append(msg)
         
-        # Update progress based on stage
+        # Extract test results when they appear (format: "  ✓ 4 passed, ✗ 2 failed")
+        import re
+        
+        # Detect test result lines and store them
+        if "passed" in msg and "failed" in msg:
+            match = re.search(r'(\d+)\s+passed.*?(\d+)\s+failed', msg)
+            if match:
+                passed, failed = match.group(1), match.group(2)
+                # Find the most recent attempt
+                for i in range(len(output_buffer)-1, max(0, len(output_buffer)-5), -1):
+                    attempt_match = re.search(r'Attempt (\d+)/', output_buffer[i])
+                    if attempt_match:
+                        attempt_num = int(attempt_match.group(1))
+                        test_results[attempt_num] = (passed, failed)
+                        # Update progress with results
+                        prog_values = {1: 0.35, 2: 0.55, 3: 0.75}
+                        if attempt_num in prog_values:
+                            progress(prog_values[attempt_num], 
+                                   desc=f" Attempt {attempt_num}: ✓ {passed} passed, ✗ {failed} failed")
+                        break
+        
+        # Update progress based on stage keywords
         for keyword, (prog_val, desc) in stage_map.items():
             if keyword in msg:
                 progress(prog_val, desc=desc)
