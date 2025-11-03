@@ -169,24 +169,39 @@ if %ERROR_COUNT% gtr 0 (
     echo.
     echo Some steps failed. Please review the errors above.
     echo You may need to fix the issues and run this script again.
+    echo.
+    echo Press any key to exit
+    pause >nul
 ) else (
     echo Installation Complete!
     echo ============================================
     echo.
     echo ✓ All components installed successfully!
     echo.
-    echo To start the AI Code Agent:
-    echo   1. Run: venv\Scripts\activate.bat
-    echo   2. Run: python ui.py
-    echo   3. Open browser at http://127.0.0.1:7860
-    echo.
     echo Optional: Pull more models with:
     echo   ollama pull llama3.1
     echo   ollama pull codellama:13b
+    echo.
+    echo ============================================
+    echo.
+    set /p "RUN_NOW=Do you want to start the AI Code Agent now? [Y/N]: "
+    if /i "%RUN_NOW%"=="Y" (
+        echo.
+        echo Starting AI Code Agent...
+        echo The UI will open in your browser at http://127.0.0.1:7860
+        echo Press Ctrl+C to stop the server when done.
+        echo.
+        call venv\Scripts\activate.bat
+        python ui.py
+    ) else (
+        echo.
+        echo To start the AI Code Agent later:
+        echo   1. Run: venv\Scripts\activate.bat
+        echo   2. Run: python ui.py
+        echo   3. Open browser at http://127.0.0.1:7860
+        echo.
+    )
 )
-echo.
-echo Press any key to exit
-pause >nul
 goto :eof
 
 REM Subroutine to install Python

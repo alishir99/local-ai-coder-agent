@@ -223,19 +223,34 @@ if [ $ERROR_COUNT -gt 0 ]; then
     echo ""
     echo "Some steps failed. Please review the errors above."
     echo "You may need to fix the issues and run this script again."
+    echo ""
 else
     echo "Installation Complete!"
     echo "============================================"
     echo ""
     echo "✓ All components installed successfully!"
     echo ""
-    echo "To start the AI Code Agent:"
-    echo "  1. Run: source venv/bin/activate"
-    echo "  2. Run: python ui.py"
-    echo "  3. Open browser at http://127.0.0.1:7860"
-    echo ""
     echo "Optional: Pull more models with:"
     echo "  ollama pull llama3.1"
     echo "  ollama pull codellama:13b"
+    echo ""
+    echo "============================================"
+    echo ""
+    read -p "Do you want to start the AI Code Agent now? [Y/N]: " RUN_NOW
+    if [ "$RUN_NOW" = "Y" ] || [ "$RUN_NOW" = "y" ]; then
+        echo ""
+        echo "Starting AI Code Agent..."
+        echo "The UI will open in your browser at http://127.0.0.1:7860"
+        echo "Press Ctrl+C to stop the server when done."
+        echo ""
+        source venv/bin/activate
+        python ui.py
+    else
+        echo ""
+        echo "To start the AI Code Agent later:"
+        echo "  1. Run: source venv/bin/activate"
+        echo "  2. Run: python ui.py"
+        echo "  3. Open browser at http://127.0.0.1:7860"
+        echo ""
+    fi
 fi
-echo ""
