@@ -1,302 +1,278 @@
-#!/bin/bash
+#!/bin/sh
 # AI Code Agent - Linux Installation Script
 # This script installs all dependencies and sets up the environment
+# Compatible with bash, sh, and ash (Alpine/BusyBox)
 
-ERROR_COUNT=0
-ERRORS=""
+set -e
+
+# Detect if running in WSL
+IS_WSL=0
+if grep -qi microsoft /proc/version 2>/dev/null || grep -qi wsl /proc/version 2>/dev/null; then
+    IS_WSL=1
+    echo "✓ Detected WSL environment"
+    echo ""
+fi
 
 echo "============================================"
 echo "AI Code Agent - Linux Setup"
 echo "============================================"
 echo ""
-echo "Checking prerequisites..."
-echo ""
 
 # Detect Linux distribution
-if [ -f /etc/os-release ]; then
+OS="unknown"
+
+# First check for Alpine (common in minimal WSL)
+if [ -f /etc/alpine-release ] || command -v apk > /dev/null 2>&1; then
+    OS="alpine"
+    echo "✓ Detected Alpine Linux"
+# Then try os-release
+elif [ -f /etc/os-release ]; then
     . /etc/os-release
-    OS=$ID
-else
-    echo "Cannot detect Linux distribution"
-    exit 1
+    if [ -n "$ID" ]; then
+        OS=$ID
+    fi
+fi
+
+# If still unknown, try other detection methods
+if [ "$OS" = "unknown" ]; then
+    echo "⚠ Cannot detect Linux distribution automatically"
 fi
 
 # Check for Python
-echo "[1/5] Checking Python installation"
+echo "[1/5] Checking Python installation..."
 if ! command -v python3 &> /dev/null; then
-    echo "[MISSING] Python not found - attempting automatic installation"
-    echo ""
+    echo "Installing Python 3..."
     if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
-        echo "Installing Python 3 via apt"
         sudo apt update
         sudo apt install -y python3 python3-pip python3-venv
-        if [ $? -eq 0 ]; then
-            echo "[OK] Python installed"
-        else
-            echo "[ERROR] Failed to install Python"
-            ERRORS="${ERRORS}- Python 3.10+\n"
-            ERROR_COUNT=$((ERROR_COUNT + 1))
-        fi
     elif [ "$OS" = "fedora" ] || [ "$OS" = "rhel" ] || [ "$OS" = "centos" ]; then
-        echo "Installing Python 3 via dnf"
         sudo dnf install -y python3 python3-pip
-        if [ $? -eq 0 ]; then
-            echo "[OK] Python installed"
-        else
-            echo "[ERROR] Failed to install Python"
-            ERRORS="${ERRORS}- Python 3.10+\n"
-            ERROR_COUNT=$((ERROR_COUNT + 1))
-        fi
     elif [ "$OS" = "arch" ] || [ "$OS" = "manjaro" ]; then
-        echo "Installing Python via pacman"
         sudo pacman -S --noconfirm python python-pip
-        if [ $? -eq 0 ]; then
-            echo "[OK] Python installed"
-        else
-            echo "[ERROR] Failed to install Python"
-            ERRORS="${ERRORS}- Python 3.10+\n"
-            ERROR_COUNT=$((ERROR_COUNT + 1))
-        fi
+    elif [ "$OS" = "alpine" ]; then
+        echo "✓ Detected Alpine Linux"
+        apk add --no-cache python3 py3-pip py3-virtualenv
     else
-        echo "[ERROR] Unsupported distribution for automatic installation"
-        ERRORS="${ERRORS}- Python 3.10+ (manual installation required)\n"
-        ERROR_COUNT=$((ERROR_COUNT + 1))
+        echo "⚠ Unsupported distribution for automatic installation."
+        echo "Please install Python 3.10+ manually, then re-run this script."
+        echo ""
+        echo "Quick install commands for common distros:"
+        echo "  Ubuntu/Debian: sudo apt install python3 python3-pip python3-venv"
+        echo "  Alpine:        apk add python3 py3-pip py3-virtualenv"
+        echo "  Fedora:        sudo dnf install python3 python3-pip"
+        exit 1
     fi
 else
     python3 --version
-    echo "[OK] Python found"
+    echo "✓ Python installed"
 fi
 echo ""
 
 # Check for Docker
-echo "[2/5] Checking Docker installation"
-if ! command -v docker &> /dev/null; then
-    echo "[MISSING] Docker not found - attempting automatic installation"
+echo "[2/5] Checking Docker installation..."
+if [ "$IS_WSL" = "1" ]; then
+    echo "⚠ Running in WSL - Docker Desktop integration required"
     echo ""
+    echo "To use Docker in WSL:"
+    echo "  1. Install Docker Desktop on Windows (if not already installed)"
+    echo "  2. In Docker Desktop settings: Settings > Resources > WSL Integration"
+    echo "  3. Enable integration for your WSL distro"
+    echo "  4. Restart WSL: run 'wsl --shutdown' in Windows PowerShell"
+    echo ""
+    if command -v docker &> /dev/null; then
+        # Test if docker actually works
+        if docker info &> /dev/null; then
+            docker --version
+            echo "✓ Docker is working via Docker Desktop"
+        else
+            echo "⚠ Docker command found but not functional"
+            echo "Please enable WSL integration in Docker Desktop settings"
+        fi
+    else
+        echo "⚠ Docker command not found"
+        echo "Please install Docker Desktop on Windows and enable WSL integration"
+    fi
+elif ! command -v docker &> /dev/null; then
+    echo "Installing Docker..."
     if [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
-        echo "Installing Docker via apt"
         sudo apt update
         sudo apt install -y docker.io
         sudo systemctl start docker
         sudo systemctl enable docker
         sudo usermod -aG docker $USER
-        if [ $? -eq 0 ]; then
-            echo "[OK] Docker installed"
-            echo "[WARNING] You may need to log out and back in for Docker permissions"
-        else
-            echo "[ERROR] Failed to install Docker"
-            ERRORS="${ERRORS}- Docker\n"
-            ERROR_COUNT=$((ERROR_COUNT + 1))
-        fi
     elif [ "$OS" = "fedora" ] || [ "$OS" = "rhel" ] || [ "$OS" = "centos" ]; then
-        echo "Installing Docker via dnf"
         sudo dnf install -y docker
         sudo systemctl start docker
         sudo systemctl enable docker
         sudo usermod -aG docker $USER
-        if [ $? -eq 0 ]; then
-            echo "[OK] Docker installed"
-            echo "[WARNING] You may need to log out and back in for Docker permissions"
-        else
-            echo "[ERROR] Failed to install Docker"
-            ERRORS="${ERRORS}- Docker\n"
-            ERROR_COUNT=$((ERROR_COUNT + 1))
-        fi
     elif [ "$OS" = "arch" ] || [ "$OS" = "manjaro" ]; then
-        echo "Installing Docker via pacman"
         sudo pacman -S --noconfirm docker
         sudo systemctl start docker
         sudo systemctl enable docker
         sudo usermod -aG docker $USER
-        if [ $? -eq 0 ]; then
-            echo "[OK] Docker installed"
-            echo "[WARNING] You may need to log out and back in for Docker permissions"
-        else
-            echo "[ERROR] Failed to install Docker"
-            ERRORS="${ERRORS}- Docker\n"
-            ERROR_COUNT=$((ERROR_COUNT + 1))
-        fi
-    else
-        echo "[ERROR] Unsupported distribution for automatic installation"
-        ERRORS="${ERRORS}- Docker (manual installation required)\n"
-        ERROR_COUNT=$((ERROR_COUNT + 1))
+    elif [ "$OS" = "alpine" ]; then
+        apk add --no-cache docker
+        rc-update add docker boot
+        service docker start
     fi
+    echo "✓ Docker installed"
+    echo "Note: You may need to log out and back in for Docker permissions to take effect"
 else
     docker --version
-    echo "[OK] Docker found"
+    echo "✓ Docker installed"
 fi
 echo ""
 
 # Check for Ollama
-echo "[3/5] Checking Ollama installation"
+echo "[3/5] Checking Ollama installation..."
+OLLAMA_INSTALLED=0
 if ! command -v ollama &> /dev/null; then
-    echo "[MISSING] Ollama not found - attempting automatic installation"
-    echo ""
-    echo "Installing Ollama via official script"
-    curl -fsSL https://ollama.com/install.sh | sh
-    if [ $? -eq 0 ]; then
-        echo "[OK] Ollama installed"
+    echo "Installing Ollama..."
+    
+    # Ensure curl or wget is available
+    if ! command -v curl &> /dev/null && ! command -v wget &> /dev/null; then
+        echo "Installing curl (required for Ollama installation)..."
+        if [ "$OS" = "alpine" ]; then
+            apk add --no-cache curl
+        elif [ "$OS" = "ubuntu" ] || [ "$OS" = "debian" ]; then
+            sudo apt update && sudo apt install -y curl
+        elif [ "$OS" = "fedora" ] || [ "$OS" = "rhel" ] || [ "$OS" = "centos" ]; then
+            sudo dnf install -y curl
+        elif [ "$OS" = "arch" ] || [ "$OS" = "manjaro" ]; then
+            sudo pacman -S --noconfirm curl
+        else
+            echo "⚠ Cannot install curl automatically"
+            echo "Please install curl first: apk add curl (for Alpine)"
+        fi
+    fi
+    
+    if command -v curl &> /dev/null; then
+        # Note: Ollama install script may not support Alpine in WSL
+        if curl -fsSL https://ollama.com/install.sh | sh; then
+            echo "✓ Ollama installed"
+            OLLAMA_INSTALLED=1
+        else
+            echo "⚠ Ollama installation failed"
+            echo "For WSL, you may want to install Ollama on Windows instead:"
+            echo "  https://ollama.com/download/windows"
+        fi
     else
-        echo "[ERROR] Failed to install Ollama"
-        ERRORS="${ERRORS}- Ollama from https://ollama.com\n"
-        ERROR_COUNT=$((ERROR_COUNT + 1))
+        echo "⚠ Cannot install Ollama automatically (curl not available)"
+        echo "For WSL, install Ollama on Windows instead:"
+        echo "  https://ollama.com/download/windows"
     fi
 else
     ollama --version
-    echo "[OK] Ollama found"
+    echo "✓ Ollama already installed"
+    OLLAMA_INSTALLED=1
 fi
 echo ""
 
-# If there are missing prerequisites, show them and exit
-if [ $ERROR_COUNT -gt 0 ]; then
-    echo ""
-    echo "============================================"
-    echo "Missing Prerequisites: $ERROR_COUNT"
-    echo "============================================"
-    echo ""
-    echo "Please install the following:"
-    echo ""
-    echo -e "$ERRORS"
-    echo "After installing, run this script again."
-    echo ""
-    exit 1
-fi
+# Only proceed with Ollama steps if it's installed
+if [ "$OLLAMA_INSTALLED" = "1" ]; then
+    # Start Ollama service
+    echo "Starting Ollama service..."
+    if ! pgrep -x ollama > /dev/null; then
+        ollama serve &> /dev/null &
+        sleep 2
+    fi
 
-echo "============================================"
-echo "All prerequisites found! Starting setup..."
-echo "============================================"
-echo ""
-
-# Start Ollama service
-echo "[3/5] Starting Ollama service"
-if ! pgrep -x ollama > /dev/null; then
-    ollama serve &> /dev/null &
-    sleep 2
-fi
-echo "[OK] Ollama service started"
-echo ""
-
-# Pull default models
-echo "Pulling recommended AI models (this may take 5-10 minutes)"
-echo ""
-echo "[Model 1/2] Pulling qwen2.5-coder:1.5b (smallest, fastest)"
-ollama pull qwen2.5-coder:1.5b
-if [ $? -eq 0 ]; then
-    echo "[OK] qwen2.5-coder:1.5b installed"
+    # Pull default models
+    echo "Pulling recommended models (this may take a while)..."
+    echo "This might take 5-10 minutes depending on your internet speed."
+    if ollama pull qwen2.5-coder:1.5b; then
+        echo "✓ qwen2.5-coder:1.5b installed"
+    else
+        echo "⚠ Failed to pull qwen2.5-coder:1.5b"
+    fi
+    
+    if ollama pull phi3.5; then
+        echo "✓ phi3.5 installed"
+    else
+        echo "⚠ Failed to pull phi3.5"
+    fi
+    echo ""
 else
-    echo "[WARNING] Failed to pull qwen2.5-coder:1.5b"
-    echo "You can manually pull it later with: ollama pull qwen2.5-coder:1.5b"
+    echo "⚠ Skipping Ollama model downloads (Ollama not available)"
+    echo "Recommendation for WSL: Install Ollama on Windows and access it from WSL"
+    echo ""
 fi
-echo ""
-echo "[Model 2/2] Pulling phi3.5"
-ollama pull phi3.5
-if [ $? -eq 0 ]; then
-    echo "[OK] phi3.5 installed"
-else
-    echo "[WARNING] Failed to pull phi3.5"
-    echo "You can manually pull it later with: ollama pull phi3.5"
-fi
-echo ""
 
 # Create virtual environment
-echo "[4/5] Setting up Python virtual environment"
+echo "[4/5] Setting up Python virtual environment..."
 if [ ! -d "venv" ]; then
-    echo "Creating virtual environment"
     python3 -m venv venv
-    if [ $? -eq 0 ]; then
-        echo "[OK] Virtual environment created"
-    else
-        echo "[ERROR] Failed to create virtual environment"
-        ERROR_COUNT=$((ERROR_COUNT + 1))
-    fi
-else
-    echo "[OK] Virtual environment already exists"
 fi
-
-if [ -f "venv/bin/activate" ]; then
-    source venv/bin/activate
-    echo "[OK] Virtual environment activated"
-else
-    echo "[ERROR] Virtual environment activation script not found"
-    ERROR_COUNT=$((ERROR_COUNT + 1))
-fi
-echo ""
+source venv/bin/activate
 
 # Install Python dependencies
-echo "Installing Python packages (this may take a minute)"
-pip install --upgrade pip > /dev/null 2>&1
-if [ $? -ne 0 ]; then
-    echo "[WARNING] Failed to upgrade pip (continuing anyway)"
-fi
+echo "Installing Python packages..."
+pip install --upgrade pip
 pip install -r requirements.txt
-if [ $? -eq 0 ]; then
-    echo "[OK] Python packages installed"
-else
-    echo "[ERROR] Failed to install Python packages"
-    echo "Check your internet connection and try again"
-    ERROR_COUNT=$((ERROR_COUNT + 1))
-fi
+echo "✓ Python packages installed"
 echo ""
 
 # Build Docker sandbox
-echo "[5/5] Building Docker sandbox image"
-echo "This may take a few minutes on first run"
-sudo docker build -t ai-agent-python .
-if [ $? -eq 0 ]; then
-    echo "[OK] Docker image built successfully"
+echo "[5/5] Building Docker sandbox image..."
+if command -v docker &> /dev/null && docker info &> /dev/null; then
+    # Determine if sudo is needed
+    if [ "$IS_WSL" = "1" ] || docker info &> /dev/null 2>&1; then
+        docker build -t ai-agent-python .
+    else
+        sudo docker build -t ai-agent-python .
+    fi
+    echo "✓ Docker image built"
 else
-    echo "[ERROR] Docker build failed"
-    echo "Make sure Docker is running and try again"
-    ERROR_COUNT=$((ERROR_COUNT + 1))
+    echo "⚠ Docker not available - skipping image build"
+    echo "You can build the image later with: docker build -t ai-agent-python ."
 fi
 echo ""
 
-# Final summary
 echo "============================================"
-if [ $ERROR_COUNT -gt 0 ]; then
-    echo "Installation Completed with $ERROR_COUNT error(s)"
-    echo "============================================"
-    echo ""
-    echo "Some steps failed. Please review the errors above."
-    echo "You may need to fix the issues and run this script again."
-    echo ""
-else
-    echo "Installation Complete!"
-    echo "============================================"
-    echo ""
+echo "Installation Complete!"
+echo "============================================"
+echo ""
+
+# Show summary of what needs attention
+NEEDS_ATTENTION=0
+if [ "$IS_WSL" = "1" ]; then
+    if ! docker info &> /dev/null 2>&1; then
+        echo "⚠ ACTION REQUIRED: Docker Desktop WSL Integration"
+        echo "  1. Open Docker Desktop on Windows"
+        echo "  2. Go to Settings > Resources > WSL Integration"
+        echo "  3. Enable your WSL distro"
+        echo "  4. Run 'wsl --shutdown' in Windows PowerShell"
+        echo "  5. Restart WSL"
+        echo ""
+        NEEDS_ATTENTION=1
+    fi
+    
+    if [ "$OLLAMA_INSTALLED" = "0" ]; then
+        echo "⚠ ACTION REQUIRED: Install Ollama on Windows"
+        echo "  Download from: https://ollama.com/download/windows"
+        echo "  After installation, you can access it from WSL"
+        echo ""
+        NEEDS_ATTENTION=1
+    fi
+fi
+
+if [ "$NEEDS_ATTENTION" = "0" ]; then
     echo "✓ All components installed successfully!"
     echo ""
-    echo "Optional: Pull more models with:"
-    echo "  ollama pull llama3.1"
-    echo "  ollama pull codellama:13b"
+fi
+
+echo "To start the AI Code Agent:"
+echo "  1. Run: source venv/bin/activate"
+echo "  2. Run: python ui.py"
+echo "  3. Open browser at http://127.0.0.1:7860"
+echo ""
+echo "Optional: Pull more models with:"
+echo "  ollama pull llama3.1"
+echo "  ollama pull codellama:13b"
+echo ""
+if [ "$IS_WSL" = "0" ] && [ "$NEEDS_ATTENTION" = "1" ]; then
+    echo "If you just installed Docker, you may need to:"
+    echo "  1. Log out and log back in"
+    echo "  2. Or run: newgrp docker"
     echo ""
-    
-    if groups | grep -q docker; then
-        :
-    else
-        echo "Note: If you just installed Docker, you may need to:"
-        echo "  1. Log out and log back in"
-        echo "  2. Or run: newgrp docker"
-        echo ""
-    fi
-    
-    echo "============================================"
-    echo ""
-    read -p "Do you want to start the AI Code Agent now? [Y/N]: " RUN_NOW
-    if [ "$RUN_NOW" = "Y" ] || [ "$RUN_NOW" = "y" ]; then
-        echo ""
-        echo "Starting AI Code Agent..."
-        echo "The UI will open in your browser at http://127.0.0.1:7860"
-        echo "Press Ctrl+C to stop the server when done."
-        echo ""
-        source venv/bin/activate
-        python ui.py
-    else
-        echo ""
-        echo "To start the AI Code Agent later:"
-        echo "  1. Run: source venv/bin/activate"
-        echo "  2. Run: python ui.py"
-        echo "  3. Open browser at http://127.0.0.1:7860"
-        echo ""
-    fi
 fi
