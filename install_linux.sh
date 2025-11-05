@@ -199,17 +199,62 @@ else
 fi
 
 # Create virtual environment
-echo "[4/5] Setting up Python virtual environment..."
+echo "[4/5] Setting up Python virtual environment"
 if [ ! -d "venv" ]; then
+    echo "Creating virtual environment"
     python3 -m venv venv
+    if [ $? -eq 0 ]; then
+        echo "[OK] Virtual environment created"
+    else
+        echo "[ERROR] Failed to create virtual environment"
+        ERROR_COUNT=$((ERROR_COUNT + 1))
+    fi
+else
+    echo "[OK] Virtual environment already exists"
 fi
-source venv/bin/activate
+
+if [ -f "venv/bin/activate" ]; then
+    . venv/bin/activate
+    echo "[OK] Virtual environment activated"
+else
+    echo "[ERROR] Virtual environment activation script not found"
+    ERROR_COUNT=$((ERROR_COUNT + 1))
+fi
+echo ""
 
 # Install Python dependencies
-echo "Installing Python packages..."
-pip install --upgrade pip
-pip install -r requirements.txt
-echo "✓ Python packages installed"
+echo "Installing Python packages (this may take a minute)"
+echo ""
+
+# Make sure we're using venv's pip
+if [ -f "venv/bin/pip" ]; then
+    echo "Upgrading pip..."
+    venv/bin/pip install --upgrade pip
+    echo ""
+    echo "Installing requirements..."
+    venv/bin/pip install -r requirements.txt
+    if [ $? -eq 0 ]; then
+        echo ""
+        echo "[OK] Python packages installed"
+        
+        # Verify critical packages
+        echo "Verifying installation..."
+        if venv/bin/python -c "import gradio" 2>/dev/null; then
+            echo "[OK] Gradio verified"
+        else
+            echo "[ERROR] Gradio installation failed"
+            ERROR_COUNT=$((ERROR_COUNT + 1))
+        fi
+    else
+        echo ""
+        echo "[ERROR] Failed to install Python packages"
+        echo "Check your internet connection and try again"
+        ERROR_COUNT=$((ERROR_COUNT + 1))
+    fi
+else
+    echo "[ERROR] pip not found in virtual environment"
+    ERROR_COUNT=$((ERROR_COUNT + 1))
+fi
 echo ""
 
 # Build Docker sandbox
@@ -233,46 +278,56 @@ echo "Installation Complete!"
 echo "============================================"
 echo ""
 
-# Show summary of what needs attention
-NEEDS_ATTENTION=0
-if [ "$IS_WSL" = "1" ]; then
-    if ! docker info &> /dev/null 2>&1; then
-        echo "⚠ ACTION REQUIRED: Docker Desktop WSL Integration"
-        echo "  1. Open Docker Desktop on Windows"
-        echo "  2. Go to Settings > Resources > WSL Integration"
-        echo "  3. Enable your WSL distro"
-        echo "  4. Run 'wsl --shutdown' in Windows PowerShell"
-        echo "  5. Restart WSL"
-        echo ""
-        NEEDS_ATTENTION=1
-    fi
-    
-    if [ "$OLLAMA_INSTALLED" = "0" ]; then
-        echo "⚠ ACTION REQUIRED: Install Ollama on Windows"
-        echo "  Download from: https://ollama.com/download/windows"
-        echo "  After installation, you can access it from WSL"
-        echo ""
-        NEEDS_ATTENTION=1
-    fi
+# Create launcher script
+echo "Creating launcher script..."
+cat > run.sh << 'LAUNCHER_EOF'
+#!/bin/sh
+# AI Code Agent - Launcher Script
+# This script ensures the virtual environment is activated and runs the UI
+
+cd "$(dirname "$0")"
+
+if [ ! -d "venv" ]; then
+    echo "Error: Virtual environment not found!"
+    echo "Please run the installer first: bash install_linux.sh"
+    exit 1
 fi
 
-if [ "$NEEDS_ATTENTION" = "0" ]; then
-    echo "✓ All components installed successfully!"
-    echo ""
+if [ ! -f "venv/bin/python" ]; then
+    echo "Error: Python not found in virtual environment!"
+    echo "Please re-run the installer: bash install_linux.sh"
+    exit 1
 fi
+
+echo "============================================"
+echo "Starting AI Code Agent"
+echo "============================================"
+echo ""
+echo "UI will be available at: http://127.0.0.1:7860"
+echo "Press Ctrl+C to stop the server"
+echo ""
+
+# Use venv's python directly (no activation needed)
+exec venv/bin/python ui.py
+LAUNCHER_EOF
+
+chmod +x run.sh
+echo "✓ Launcher script created: ./run.sh"
+echo ""
+
+# Show summary
+echo "✓ All components installed successfully!"
+echo ""
 
 echo "To start the AI Code Agent:"
-echo "  1. Run: source venv/bin/activate"
-echo "  2. Run: python ui.py"
-echo "  3. Open browser at http://127.0.0.1:7860"
+echo "  EASY WAY: ./run.sh"
+echo ""
+echo "  OR manually:"
+echo "    1. Run: . venv/bin/activate"
+echo "    2. Run: python ui.py"
+echo "    3. Open browser at http://127.0.0.1:7860"
 echo ""
 echo "Optional: Pull more models with:"
 echo "  ollama pull llama3.1"
 echo "  ollama pull codellama:13b"
 echo ""
-if [ "$IS_WSL" = "0" ] && [ "$NEEDS_ATTENTION" = "1" ]; then
-    echo "If you just installed Docker, you may need to:"
-    echo "  1. Log out and log back in"
-    echo "  2. Or run: newgrp docker"
-    echo ""
-fi
